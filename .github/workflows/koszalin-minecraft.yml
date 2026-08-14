@@ -1,0 +1,72 @@
+name: Koszalin 1:1 Minecraft
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/koszalin-minecraft.yml'
+      - 'projects/koszalin-minecraft/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: koszalin-minecraft-full-build
+  cancel-in-progress: false
+
+jobs:
+  build-koszalin:
+    name: Generate Koszalin 1:1
+    runs-on: ubuntu-22.04
+    timeout-minutes: 355
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: System information
+        run: |
+          uname -a
+          nproc
+          free -h
+          df -h
+
+      - name: Generate full Koszalin world
+        run: bash projects/koszalin-minecraft/build.sh
+
+      - name: Package world
+        run: bash projects/koszalin-minecraft/package.sh
+
+      - name: Prepare release notes
+        run: |
+          cat > build/koszalin-minecraft/dist/RELEASE_NOTES.md <<'EOF_NOTES'
+          # Koszalin 1:1 – Minecraft Java
+
+          Automatycznie wygenerowany świat Koszalina w skali 1 blok = 1 metr.
+
+          - teren: rzeczywiste dane wysokościowe używane przez Arnis
+          - drogi, budynki, kolej, wody i inne obiekty: dane przetwarzane przez Arnis
+          - spawn: Rynek Staromiejski
+          - tryb gry: Creative
+          - silnik: Arnis v3.0.0
+
+          Pobierz `Koszalin_1_to_1_Java.zip`. Jeżeli zamiast niego widoczne są części `.part-01`, `.part-02` itd., pobierz wszystkie oraz `README_DOWNLOAD.txt`.
+          EOF_NOTES
+
+      - name: Publish generated world as GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          TAG="koszalin-minecraft-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          TITLE="Koszalin 1:1 Minecraft – build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          NOTES="build/koszalin-minecraft/dist/RELEASE_NOTES.md"
+
+          mapfile -t ASSETS < <(find build/koszalin-minecraft/dist -maxdepth 1 -type f \
+            ! -name 'RELEASE_NOTES.md' -print | sort)
+
+          gh release create "$TAG" "${ASSETS[@]}" \
+            --title "$TITLE" \
+            --notes-file "$NOTES" \
+            --latest
