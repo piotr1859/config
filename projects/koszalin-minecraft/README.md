@@ -1,4 +1,10 @@
-# Koszalin 1:1 → Minecraft Java
+# Koszalin → Minecraft
+
+## Bedrock / Android: Koszalin MZK
+
+Aktualna wersja mobilna rezygnuje z ciężkiej, automatycznej kopii całej zabudowy. Koncentruje się na rozpoznawalnych głównych obiektach oraz pełnej sieci MZK: rzeczywistych liniach, aktywnych przystankach, poruszających się autobusach i polskich zapowiedziach. Szczegóły i instrukcja budowania: [`mzk-bedrock/README.md`](mzk-bedrock/README.md).
+
+## Starszy generator Java 1:1
 
 Automatyczny generator świata **Koszalin 1:1**. Nie wymaga ręcznego używania QGIS, WorldPaintera ani pobierania danych GIS.
 

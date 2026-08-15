@@ -1,0 +1,24 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "mzk:bus",
+      "materials": { "default": "entity_alphatest" },
+      "textures": {
+        "line_0": "textures/entity/bus_0", "line_1": "textures/entity/bus_1",
+        "line_2": "textures/entity/bus_2", "line_3": "textures/entity/bus_3",
+        "line_4": "textures/entity/bus_4", "line_5": "textures/entity/bus_5",
+        "line_6": "textures/entity/bus_6", "line_7": "textures/entity/bus_7",
+        "line_8": "textures/entity/bus_8", "line_9": "textures/entity/bus_9",
+        "line_10": "textures/entity/bus_10", "line_11": "textures/entity/bus_11",
+        "line_12": "textures/entity/bus_12", "line_13": "textures/entity/bus_13",
+        "line_14": "textures/entity/bus_14", "line_15": "textures/entity/bus_15",
+        "line_16": "textures/entity/bus_16", "line_17": "textures/entity/bus_17",
+        "line_18": "textures/entity/bus_18", "line_19": "textures/entity/bus_19"
+      },
+      "geometry": { "default": "geometry.mzk_bus" },
+      "render_controllers": ["controller.render.mzk_bus"],
+      "enable_attachables": false
+    }
+  }
+}
