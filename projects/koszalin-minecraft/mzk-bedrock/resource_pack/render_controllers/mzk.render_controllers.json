@@ -1,0 +1,30 @@
+{
+  "format_version": "1.8.0",
+  "render_controllers": {
+    "controller.render.mzk_bus": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [
+            "Texture.line_0", "Texture.line_1", "Texture.line_2", "Texture.line_3", "Texture.line_4",
+            "Texture.line_5", "Texture.line_6", "Texture.line_7", "Texture.line_8", "Texture.line_9",
+            "Texture.line_10", "Texture.line_11", "Texture.line_12", "Texture.line_13", "Texture.line_14",
+            "Texture.line_15", "Texture.line_16", "Texture.line_17", "Texture.line_18", "Texture.line_19"
+          ]
+        }
+      },
+      "geometry": "Geometry.default",
+      "materials": [{ "*": "Material.default" }],
+      "textures": ["Array.skins[query.variant]"]
+    },
+    "controller.render.mzk_marker": {
+      "geometry": "Geometry.default",
+      "materials": [{ "*": "Material.default" }],
+      "textures": ["Texture.default"]
+    },
+    "controller.render.mzk_ferry": {
+      "geometry": "Geometry.default",
+      "materials": [{ "*": "Material.default" }],
+      "textures": ["Texture.default"]
+    }
+  }
+}

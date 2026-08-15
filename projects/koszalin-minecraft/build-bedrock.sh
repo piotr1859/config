@@ -3,73 +3,113 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROJECT_DIR="$ROOT/projects/koszalin-minecraft"
-# shellcheck disable=SC1091
-source "$PROJECT_DIR/config.env"
-
-BUILD_DIR="${BUILD_DIR:-$ROOT/build/koszalin-bedrock}"
-TOOLS_DIR="$BUILD_DIR/tools"
-OUTPUT_DIR="$BUILD_DIR/output"
+MZK_DIR="$PROJECT_DIR/mzk-bedrock"
+BUILD_DIR="${BUILD_DIR:-$ROOT/build/koszalin-mzk-bedrock}"
+DOWNLOAD_DIR="$BUILD_DIR/downloads"
+WORK_DIR="$BUILD_DIR/work"
+WORLD_DIR="$WORK_DIR/world"
+BP_DIR="$WORLD_DIR/behavior_packs/KoszalinMZK_BP"
+RP_DIR="$WORLD_DIR/resource_packs/KoszalinMZK_RP"
 DIST_DIR="$BUILD_DIR/dist"
-LOG_DIR="$BUILD_DIR/logs"
+REPORT_DIR="$BUILD_DIR/reports"
+GTFS_URL="${GTFS_URL:-https://files.girlc.at/gtfs/koszalin.zip}"
+FINAL="$DIST_DIR/Koszalin_MZK_Android.mcworld"
 
-rm -rf "$OUTPUT_DIR" "$DIST_DIR" "$LOG_DIR"
-mkdir -p "$TOOLS_DIR" "$OUTPUT_DIR" "$DIST_DIR" "$LOG_DIR"
+rm -rf "$WORK_DIR" "$DIST_DIR" "$REPORT_DIR"
+mkdir -p "$DOWNLOAD_DIR" "$WORLD_DIR/db" "$WORLD_DIR/behavior_packs" "$WORLD_DIR/resource_packs" "$DIST_DIR" "$REPORT_DIR"
 
-ARCHIVE="arnis-linux-appimage.tar.gz"
-ARNIS_URL="https://github.com/louis-e/arnis/releases/download/${ARNIS_VERSION}/${ARCHIVE}"
+printf '== Koszalin MZK – Bedrock / Android ==\n'
+printf 'GTFS: %s\n' "$GTFS_URL"
 
-printf '== Koszalin 1:1 Minecraft Bedrock ==\n'
-printf 'Arnis: %s\nBBOX: %s\nScale: %s block/m\n' "$ARNIS_VERSION" "$BBOX" "$SCALE"
+curl --fail --location --retry 7 --retry-all-errors --connect-timeout 30 \
+  --output "$DOWNLOAD_DIR/koszalin.zip" "$GTFS_URL"
+unzip -tq "$DOWNLOAD_DIR/koszalin.zip"
 
-if [[ ! -f "$TOOLS_DIR/$ARCHIVE" ]]; then
-  curl --fail --location --retry 6 --retry-all-errors --connect-timeout 30 \
-    --output "$TOOLS_DIR/$ARCHIVE" "$ARNIS_URL"
-fi
+cp -R "$MZK_DIR/behavior_pack" "$BP_DIR"
+cp -R "$MZK_DIR/resource_pack" "$RP_DIR"
+cp "$MZK_DIR/world_template/world_behavior_packs.json" "$WORLD_DIR/world_behavior_packs.json"
+cp "$MZK_DIR/world_template/world_resource_packs.json" "$WORLD_DIR/world_resource_packs.json"
+cp "$MZK_DIR/world_template/metadata.json" "$WORLD_DIR/metadata.json"
+base64 --decode "$MZK_DIR/world_template/level.dat.b64" > "$WORLD_DIR/level.dat"
+printf '%s\n' 'Koszalin MZK - Glowne obiekty' > "$WORLD_DIR/levelname.txt"
 
-echo "${ARNIS_LINUX_APPIMAGE_SHA256}  $TOOLS_DIR/$ARCHIVE" | sha256sum --check --status || {
-  echo "ERROR: Arnis archive checksum mismatch" >&2
-  rm -f "$TOOLS_DIR/$ARCHIVE"
-  exit 20
-}
+python3 "$MZK_DIR/tools/prepare_gtfs.py" \
+  --gtfs "$DOWNLOAD_DIR/koszalin.zip" \
+  --output-js "$BP_DIR/scripts/data.js" \
+  --voice-list "$WORK_DIR/voice-list.jsonl" \
+  --report "$REPORT_DIR/gtfs-report.json"
 
-rm -f "$TOOLS_DIR/arnis-linux.AppImage"
-tar -xzf "$TOOLS_DIR/$ARCHIVE" -C "$TOOLS_DIR"
-chmod +x "$TOOLS_DIR/arnis-linux.AppImage"
+python3 "$MZK_DIR/tools/generate_assets.py" \
+  --resource-pack "$RP_DIR" \
+  --behavior-pack "$BP_DIR" \
+  --world "$WORLD_DIR"
 
-export APPIMAGE_EXTRACT_AND_RUN=1
-export RUST_BACKTRACE=1
+python3 "$MZK_DIR/tools/generate_tts.py" \
+  --voice-list "$WORK_DIR/voice-list.jsonl" \
+  --resource-pack "$RP_DIR"
 
-set +e
-"$TOOLS_DIR/arnis-linux.AppImage" \
-  --bedrock \
-  --output-dir="$OUTPUT_DIR" \
-  --bbox="$BBOX" \
-  --terrain \
-  --scale="$SCALE" \
-  --spawn-lat="$SPAWN_LAT" \
-  --spawn-lng="$SPAWN_LNG" \
-  --gamemode=creative \
-  --world-time=6000 \
-  --map-preview \
-  2>&1 | tee "$LOG_DIR/arnis-bedrock.log"
-ARNIS_RC=${PIPESTATUS[0]}
-set -e
+python3 "$MZK_DIR/tools/validate_build.py" \
+  --world "$WORLD_DIR" \
+  --report "$REPORT_DIR/gtfs-report.json"
 
-if [[ $ARNIS_RC -ne 0 ]]; then
-  echo "ERROR: Arnis Bedrock generation exited with code $ARNIS_RC" >&2
-  exit "$ARNIS_RC"
-fi
+cat > "$WORLD_DIR/KOSZALIN_MZK_INFO.txt" <<EOF_INFO
+KOSZALIN MZK – MINECRAFT BEDROCK / ANDROID
 
-MCWORLD="$(find "$OUTPUT_DIR" -maxdepth 2 -type f -name '*.mcworld' -print -quit)"
-if [[ -z "$MCWORLD" ]]; then
-  echo "ERROR: generation finished but no .mcworld file was found" >&2
-  find "$OUTPUT_DIR" -maxdepth 3 -type f | head -200 >&2 || true
-  exit 30
-fi
+Zakres:
+- ręcznie stylizowane główne obiekty Koszalina,
+- komplet aktywnych przystanków kierunkowych z aktualnego pakietu GTFS,
+- rzeczywiste numery 20 linii MZK i kierunki z rozkładu,
+- poruszające się, możliwe do zajęcia autobusy,
+- nowe polskie syntetyczne zapowiedzi prawdziwych nazw przystanków,
+- zielone wiaty inspirowane koszalińskimi ekoprzystankami.
 
-FINAL="$DIST_DIR/Koszalin_1_to_1_Bedrock.mcworld"
-mv "$MCWORLD" "$FINAL"
-sha256sum "$FINAL" > "$DIST_DIR/Koszalin_1_to_1_Bedrock.mcworld.sha256"
+Skala pozioma: 0.35 bloku na metr (optymalizacja dla Androida).
+Punkt odniesienia i start: Rynek Staromiejski.
+Teren, drogi, wiaty i obiekty są dobudowywane w pobliżu gracza, dzięki czemu plik pozostaje lekki.
 
-printf 'Bedrock world generated: %s\n' "$FINAL"
+Źródła danych:
+- oficjalny rozkład MZK Koszalin: https://mzk.koszalin.pl/rozklad-jazdy/
+- lista przystanków MZK: https://mzk.koszalin.pl/timetable_files/przystanki.html
+- pakiet GTFS Koszalin: $GTFS_URL
+
+Modele, tekstury, konstrukcje i nagrania syntetyczne utworzono specjalnie dla tego świata.
+To nie jest oficjalny produkt MZK, Mojang ani Microsoft.
+EOF_INFO
+
+(
+  cd "$WORLD_DIR"
+  zip -q -r -9 "$FINAL" .
+)
+
+sha256sum "$FINAL" > "$FINAL.sha256"
+cp "$REPORT_DIR/gtfs-report.json" "$DIST_DIR/Koszalin_MZK_build_report.json"
+python3 "$MZK_DIR/tools/release_notes.py" \
+  --report "$REPORT_DIR/gtfs-report.json" \
+  --output "$DIST_DIR/RELEASE_NOTES.md"
+
+unzip -tq "$FINAL"
+python3 - "$FINAL" <<'PY'
+import sys, zipfile
+path = sys.argv[1]
+with zipfile.ZipFile(path) as archive:
+    names = set(archive.namelist())
+    required = {
+        "level.dat", "levelname.txt", "world_icon.jpeg",
+        "world_behavior_packs.json", "world_resource_packs.json",
+        "behavior_packs/KoszalinMZK_BP/scripts/main.js",
+        "behavior_packs/KoszalinMZK_BP/scripts/data.js",
+        "resource_packs/KoszalinMZK_RP/entity/bus.entity.json",
+        "resource_packs/KoszalinMZK_RP/entity/ferry.entity.json",
+        "resource_packs/KoszalinMZK_RP/sounds/sound_definitions.json",
+    }
+    missing = sorted(required - names)
+    if missing:
+        raise SystemExit(f"mcworld is missing: {missing}")
+    sounds = [name for name in names if name.endswith(".ogg")]
+    if len(sounds) < 150:
+        raise SystemExit(f"mcworld contains only {len(sounds)} announcements")
+    print(f"mcworld entries={len(names)}, announcements={len(sounds)}")
+PY
+
+printf 'Generated files:\n'
 ls -lh "$DIST_DIR"

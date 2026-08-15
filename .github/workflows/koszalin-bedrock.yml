@@ -1,4 +1,4 @@
-name: Koszalin 1:1 Minecraft Bedrock
+name: Koszalin MZK – Minecraft Bedrock Android
 
 on:
   workflow_dispatch:
@@ -7,76 +7,70 @@ on:
     paths:
       - '.github/workflows/koszalin-bedrock.yml'
       - 'projects/koszalin-minecraft/build-bedrock.sh'
-      - 'projects/koszalin-minecraft/config.env'
+      - 'projects/koszalin-minecraft/mzk-bedrock/**'
 
 permissions:
   contents: write
 
 concurrency:
-  group: koszalin-minecraft-bedrock-build
-  cancel-in-progress: false
+  group: koszalin-mzk-bedrock-build
+  cancel-in-progress: true
 
 jobs:
   build-bedrock:
-    name: Generate Koszalin Bedrock .mcworld
-    runs-on: ubuntu-22.04
-    timeout-minutes: 355
+    name: Build self-contained Android .mcworld
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Install Arnis Linux runtime dependencies
+      - name: Install audio and image tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libegl1 \
-            libgtk-3-dev \
-            build-essential \
-            pkg-config \
-            libglib2.0-dev \
-            libsoup-3.0-dev \
-            libwebkit2gtk-4.1-dev
+          sudo apt-get install -y espeak-ng ffmpeg python3-pil zip unzip
 
-      - name: System information
-        run: |
-          uname -a
-          nproc
-          free -h
-          df -h
-
-      - name: Generate Koszalin Bedrock world
+      - name: Build and validate Koszalin MZK world
         run: bash projects/koszalin-minecraft/build-bedrock.sh
 
-      - name: Prepare release notes
+      - name: Check Bedrock Script API compatibility
         run: |
-          cat > build/koszalin-bedrock/dist/RELEASE_NOTES.md <<'EOF_NOTES'
-          # Koszalin 1:1 – Minecraft Bedrock / Android
+          npm --cache "$RUNNER_TEMP/npm-cache" install \
+            --prefix "$RUNNER_TEMP/koszalin-typecheck" \
+            --no-save --ignore-scripts \
+            typescript@latest @minecraft/server@2.0.0
+          "$RUNNER_TEMP/koszalin-typecheck/node_modules/.bin/tsc" \
+            --allowJs --checkJs --noEmit \
+            --moduleResolution bundler --module es2022 --target es2022 \
+            --skipLibCheck --noImplicitAny false \
+            --typeRoots "$RUNNER_TEMP/koszalin-typecheck/node_modules" \
+            build/koszalin-mzk-bedrock/work/world/behavior_packs/KoszalinMZK_BP/scripts/main.js \
+            build/koszalin-mzk-bedrock/work/world/behavior_packs/KoszalinMZK_BP/scripts/data.js
 
-          Gotowy świat Koszalina w formacie `.mcworld`, przeznaczony m.in. do Minecraft Bedrock na Androidzie.
+      - name: Upload build diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: koszalin-mzk-build-report-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            build/koszalin-mzk-bedrock/dist/Koszalin_MZK_build_report.json
+            build/koszalin-mzk-bedrock/dist/Koszalin_MZK_Android.mcworld.sha256
+          if-no-files-found: error
+          retention-days: 30
 
-          - skala: 1 blok = 1 metr
-          - rzeczywiste ukształtowanie terenu
-          - budynki, drogi, kolej, wody i pozostałe obiekty przetwarzane przez Arnis
-          - spawn: Rynek Staromiejski
-          - tryb gry: Creative
-          - silnik: Arnis v3.0.0
-
-          Na telefonie pobierz `Koszalin_1_to_1_Bedrock.mcworld` i otwórz go aplikacją Minecraft.
-          EOF_NOTES
-
-      - name: Publish Bedrock world as GitHub Release
+      - name: Publish Android world as latest GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
-          TAG="koszalin-bedrock-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          TITLE="Koszalin 1:1 Bedrock – build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-          DIST="build/koszalin-bedrock/dist"
+          TAG="koszalin-mzk-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          TITLE="Koszalin MZK Bedrock – build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          DIST="build/koszalin-mzk-bedrock/dist"
 
           gh release create "$TAG" \
-            "$DIST/Koszalin_1_to_1_Bedrock.mcworld" \
-            "$DIST/Koszalin_1_to_1_Bedrock.mcworld.sha256" \
+            "$DIST/Koszalin_MZK_Android.mcworld" \
+            "$DIST/Koszalin_MZK_Android.mcworld.sha256" \
+            "$DIST/Koszalin_MZK_build_report.json" \
             --title "$TITLE" \
             --notes-file "$DIST/RELEASE_NOTES.md" \
             --latest

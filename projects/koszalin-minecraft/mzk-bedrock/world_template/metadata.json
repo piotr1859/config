@@ -1,0 +1,7 @@
+{
+  "generated_with": "Koszalin MZK Bedrock generator 2.0",
+  "world_type": "void base with lazy transit-city generation",
+  "origin": "Rynek Staromiejski, Koszalin",
+  "scale": "0.35 block per metre",
+  "target": "Minecraft Bedrock / Android"
+}

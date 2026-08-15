@@ -1,0 +1,22 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Koszalin MZK – zasoby",
+    "description": "Oryginalne modele autobusów, oznakowanie i syntetyczne polskie zapowiedzi przystanków.",
+    "uuid": "09e3e483-86a7-4d2a-b1c7-1f3536600020",
+    "version": [2, 0, 0],
+    "min_engine_version": [1, 21, 80]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "09e3e483-86a7-4d2a-b1c7-1f3536600021",
+      "version": [2, 0, 0]
+    }
+  ],
+  "metadata": {
+    "authors": ["Piotr1859 / generator Koszalin MZK"],
+    "license": "MIT",
+    "url": "https://github.com/piotr1859/config"
+  }
+}
